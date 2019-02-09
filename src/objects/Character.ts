@@ -11,6 +11,8 @@ class Character {
     private character: Phaser.GameObjects.Sprite[] = [];
     private spritesheet: string[];
     private waveHdData: WaveData;
+    private waveTileLayer: Phaser.Tilemaps.LayerData;
+    private life: number;
 
     constructor(data: CharacterJson) {
         this.avatarAnim = data.avatarAnim;
@@ -19,6 +21,12 @@ class Character {
         this.id = data.id;
         this.spritesheet = data.spritesheet;
         this.waveHdData = data.waveData;
+        this.life = data.life;
+    }
+
+    getTileLayer(scene: Phaser.Scene): Phaser.Tilemaps.LayerData {
+        this.waveTileLayer = this.waveTileLayer || scene.make.tilemap({ key: this.waveHdData.map }).getLayer(0);
+        return this.waveTileLayer;
     }
 
     getAvatar(playerNum: number, x: number, y: number, scene: Phaser.Scene, originX?: number, originY?: number): Phaser.GameObjects.Sprite {
@@ -51,6 +59,10 @@ class Character {
         return this.id;
     }
 
+    getwaveName(playerNum: number, pixelSize: number): string {
+        return 'wave-' + playerNum + '-' + this.getId() + '-' + pixelSize;
+    }
+
     getCharacterSprite(playerNum: number, x: number, y: number, scene: Phaser.Scene): Phaser.GameObjects.Sprite {
         if (this.character[playerNum]) this.character[playerNum].destroy();
         return this.character[playerNum] = scene.add.sprite(x, y, this.spritesheet[playerNum - 1]);
@@ -62,7 +74,10 @@ class Character {
             this.character[playerNum] = null;
         }
     }
-    getWaveData() {
+    getWaveSpeed() {
+        return this.waveHdData.speed;
+    }
+    getWaveMap() {
         return this.waveHdData;
     }
 

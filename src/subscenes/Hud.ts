@@ -1,4 +1,6 @@
+import Character from "./../objects/Character";
 export default class Hud extends Phaser.Scene {
+
 
     constructor() {
         super({ key: "Hud" });
@@ -8,7 +10,7 @@ export default class Hud extends Phaser.Scene {
 
     }
 
-    create(): void {
-
+    create(characters: Character[]): void {
+        console.log(characters);
     }
 }

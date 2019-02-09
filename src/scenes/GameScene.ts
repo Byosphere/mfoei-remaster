@@ -15,6 +15,7 @@ export default class GameScene extends Phaser.Scene implements ControlsInterface
     private wavesData: number[][] = [];
     testText1: Phaser.GameObjects.Text;
     testText2: Phaser.GameObjects.Text;
+    loader: Phaser.GameObjects.Sprite;
 
     constructor() {
         super({ key: "GameScene" });
@@ -43,35 +44,32 @@ export default class GameScene extends Phaser.Scene implements ControlsInterface
 
     create(data: any): void {
         this.characters = data.characters;
-        let tilemapP1 = this.make.tilemap({ key: this.characters[0].getWaveData().map }).getLayer(0);
-        let tilemapP2 = this.make.tilemap({ key: this.characters[1].getWaveData().map }).getLayer(0);
 
-        generateTextureFromLayer(this, tilemapP1, 'wave-1-' + this.characters[0].getId() + '-16', 16, 'E');
-        generateTextureFromLayer(this, tilemapP2, 'wave-2-' + this.characters[1].getId() + '-16', 16, '4');
-        let t1 = generateTextureFromLayer(this, tilemapP1, 'wave-1-' + this.characters[0].getId() + '-4', 4);
-        let t2 = generateTextureFromLayer(this, tilemapP2, 'wave-2-' + this.characters[1].getId() + '-4', 4);
+        this.loader = this.add.sprite(0, this.game.canvas.height - 40, 'loader');
+        this.loader.x = this.game.canvas.width - 60;
+        this.loader.play('loading');
 
-        let t1Data: number[] = [];
-        for (let x = 0; x < t1.get().width; x++) {
-            let col = [];
-            for (let y = 0; y < t1.get().height; y++) {
-                let pixel = this.textures.getPixel(x, y, t1.key, 0);
-                if (pixel) col.push(pixel.blue);
-            }
-            t1Data.push(col.findIndex(val => { return val > 0 }));
-        }
-
-        let t2Data: number[] = [];
-        for (let x = 0; x < t2.get().width; x++) {
-            let col = [];
-            for (let y = 0; y < t2.get().height; y++) {
-                let pixel = this.textures.getPixel(x, y, t2.key, 0);
-                if (pixel) col.push(pixel.blue);
-            }
-            t2Data.push(col.findIndex(val => { return val > 0 }));
-        }
-        this.wavesData.push(t1Data, t2Data);
         this.events.on('transitioncomplete', this.startIntro, this);
+    }
+
+    createWaves() {
+        let tilemapP1 = this.characters[0].getTileLayer(this);
+        let tilemapP2 = this.characters[1].getTileLayer(this);
+        generateTextureFromLayer(this, tilemapP1, this.characters[0].getwaveName(1, 16), 16, 'E');
+        generateTextureFromLayer(this, tilemapP2, this.characters[1].getwaveName(2, 16), 16, '4');
+        let t1 = generateTextureFromLayer(this, tilemapP1, this.characters[0].getwaveName(1, 4), 4);
+        let t2 = generateTextureFromLayer(this, tilemapP2, this.characters[1].getwaveName(2, 4), 4);
+
+        let wave3 = new Wave(this, 0, WAVEMENU_Y + 32, 256, 52, this.characters[0].getwaveName(1, 4), this.characters[0].getWaveSpeed() / 4);
+        wave3.setX(-wave3.width);
+        wave3.setPositionX(160);
+        wave3.flipX = true;
+        wave3.generateData();
+
+        let wave4 = new Wave(this, this.game.canvas.width, WAVEMENU_Y + 32, 256, 52, this.characters[1].getwaveName(2, 4), this.characters[1].getWaveSpeed() / 4);
+        wave4.setPositionX(160);
+        wave4.generateData();
+        this.miniWaves.push(wave3, wave4);
     }
 
     displayBackground() {
@@ -137,46 +135,43 @@ export default class GameScene extends Phaser.Scene implements ControlsInterface
         var vLine = this.add.graphics();
         vLine.lineStyle(4, 0xffffff, 0.5);
         vLine.strokeLineShape(new Phaser.Geom.Line(this.game.canvas.width / 2 - 2, 150, this.game.canvas.width / 2 - 2, 406));
-        let wave = new Wave(this, 0, 152, this.game.canvas.width, 208, 'wave-1-' + this.characters[0].getId() + '-16', this.characters[0].getWaveData().speed);
+        let wave = new Wave(this, 0, 152, this.game.canvas.width, 208, this.characters[0].getwaveName(1, 16), this.characters[0].getWaveSpeed());
         wave.setAlpha(0.5);
         this.add.existing(wave);
-        let wave2 = new Wave(this, 0, 160, this.game.canvas.width, 208, 'wave-2-' + this.characters[1].getId() + '-16', this.characters[1].getWaveData().speed);
+        let wave2 = new Wave(this, 0, 160, this.game.canvas.width, 208, this.characters[1].getwaveName(2, 16), this.characters[1].getWaveSpeed());
         wave2.setAlpha(0.5);
         this.add.existing(wave2);
         this.waves.push(wave, wave2);
     }
 
     displayWaves() {
-        let wave3 = new Wave(this, 0, 512, 256, 52, 'wave-1-' + this.characters[0].getId() + '-4', this.characters[0].getWaveData().speed / 4);
-        wave3.setX(-wave3.width);
-        wave3.setPositionX(148);
-        this.add.existing(wave3);
-        wave3.flipX = true;
-
-        let wave4 = new Wave(this, this.game.canvas.width, 512, 256, 52, 'wave-2-' + this.characters[1].getId() + '-4', this.characters[1].getWaveData().speed / 4);
-        wave4.setPositionX(148);
-        this.add.existing(wave4);
+        this.add.existing(this.miniWaves[0]);
+        this.add.existing(this.miniWaves[1]);
 
         this.add.tween({
-            targets: wave3,
-            x: { value: 0, duration: 500, ease: "Quart.easeIn" }
+            targets: this.miniWaves[0],
+            x: { value: 0, duration: 500, ease: "Quart.easeIn" },
+            onComplete: () => {this.miniWaves[0].displayJauge()}
         });
         this.add.tween({
-            targets: wave4,
+            targets: this.miniWaves[1],
             x: { value: this.game.canvas.width - 260, duration: 500, ease: "Quart.easeIn" },
-            onComplete: () => {
-                this.waves[0].setMoving(true);
-                this.waves[1].setMoving(true);
-                wave3.setMoving(true);
-                wave4.setMoving(true);
-                this.miniWaves.push(wave3, wave4);
-                this.testText1 = this.add.text(wave3.x, wave3.y, '');
-                this.testText2 = this.add.text(wave4.x, wave4.y, '');
-            }
+            onComplete: () => {this.miniWaves[1].displayJauge(true)}
         });
     }
 
+    startWaves() {
+        this.waves[0].setMoving(true);
+        this.waves[1].setMoving(true);
+        this.miniWaves[0].setMoving(true);
+        this.miniWaves[1].setMoving(true);
+        this.testText1 = this.add.text(this.miniWaves[0].x, this.miniWaves[0].y, '');
+        this.testText2 = this.add.text(this.miniWaves[1].x, this.miniWaves[1].y, '');
+    }
+
     startIntro() {
+        this.createWaves();
+        this.scene.launch('Hud', this.characters);
         this.displayBackground();
         this.black = this.add.graphics();
         this.black.fillStyle(0x252525, 1);
@@ -185,19 +180,17 @@ export default class GameScene extends Phaser.Scene implements ControlsInterface
         this.p1Sprite.setScale(3, 3);
         this.p2Sprite = this.characters[1].getCharacterSprite(2, this.game.canvas.width, this.game.canvas.height / 2, this);
         this.p2Sprite.setScale(3, 3);
+        this.loader.destroy();
 
         this.add.tween({
             targets: this.p1Sprite,
-            x: { value: this.p1Sprite.width, duration: 1000, ease: 'Power4' },
-            onComplete: () => {
-                this.reduce(this.p1Sprite, 1);
-            }
+            x: { value: this.p1Sprite.width, duration: 1000, ease: 'Power4' }
         });
         this.add.tween({
             targets: this.p2Sprite,
             x: { value: this.game.canvas.width - this.p2Sprite.width, duration: 1000, ease: 'Power4' },
             onComplete: () => {
-                this.reduce(this.p2Sprite, 2);
+                this.reduce(this.p1Sprite, this.p2Sprite);
                 this.tweens.addCounter({
                     from: 1,
                     to: 0.5,
@@ -211,17 +204,27 @@ export default class GameScene extends Phaser.Scene implements ControlsInterface
             }
         });
     }
-    reduce(sprite: Phaser.GameObjects.Sprite, p: number) {
-        let x = p === 1 ? this.game.canvas.width / 4 + 100 : this.game.canvas.width * 3 / 4 - 100;
-        let y = this.game.canvas.height - sprite.height / 2 - 60;
+
+    reduce(p1: Phaser.GameObjects.Sprite, p2: Phaser.GameObjects.Sprite) {
+        let p1x = this.game.canvas.width / 4 + 100
+        let p2x = this.game.canvas.width * 3 / 4 - 100;
+        let y = this.game.canvas.height - p1.height / 2 - 60;
+
         this.add.tween({
-            targets: sprite,
-            x: { value: x, duration: 1000, ease: 'Power4' },
+            targets: p1,
+            x: { value: p1x, duration: 1000, ease: 'Power4' },
+            y: { value: y, duration: 1000, ease: 'Power4' },
+            scaleX: { value: 1, duration: 1000, ease: 'Power4' },
+            scaleY: { value: 1, duration: 1000, ease: 'Power4' }
+        });
+
+        this.add.tween({
+            targets: p2,
+            x: { value: p2x, duration: 1000, ease: 'Power4' },
             y: { value: y, duration: 1000, ease: 'Power4' },
             scaleX: { value: 1, duration: 1000, ease: 'Power4' },
             scaleY: { value: 1, duration: 1000, ease: 'Power4' },
-            //onComplete: () => { this.animateGetReady() }
-            onComplete: () => { this.startMatch() }
+            onComplete: () => { this.animateGetReady() }
         });
     }
 
@@ -243,6 +246,8 @@ export default class GameScene extends Phaser.Scene implements ControlsInterface
                     onComplete: () => {
                         this.texts[2].visible = true;
                         this.texts[1].visible = false;
+                        this.displayWavesMenu();
+                        this.displayWaves();
                         this.add.tween({
                             targets: this.texts[2],
                             scaleX: { value: 1.5, duration: 1000, ease: "Quart.easeOut" },
@@ -268,35 +273,32 @@ export default class GameScene extends Phaser.Scene implements ControlsInterface
         });
     }
 
-    displayJauges() {
-        let jauge = this.add.sprite(0, WAVEMENU_Y, 'movelist-background-left');
-        let jauge2 = this.add.sprite(0, WAVEMENU_Y, 'movelist-background-right');
-        jauge.setX(-jauge.width);
-        jauge2.setX(this.game.canvas.width);
-        jauge.setOrigin(0, 0);
-        jauge2.setOrigin(0, 0);
+    displayWavesMenu() {
+        let waveMenu1 = this.add.sprite(0, WAVEMENU_Y, 'movelist-background-left');
+        let waveMenu2 = this.add.sprite(0, WAVEMENU_Y, 'movelist-background-right');
+        waveMenu1.setX(-waveMenu1.width);
+        waveMenu2.setX(this.game.canvas.width);
+        waveMenu1.setOrigin(0, 0);
+        waveMenu2.setOrigin(0, 0);
         this.add.tween({
-            targets: jauge,
+            targets: waveMenu1,
             x: { value: 0, duration: 500, ease: "Quart.easeIn" }
         });
         this.add.tween({
-            targets: jauge2,
-            x: { value: this.game.canvas.width - jauge2.width, duration: 500, ease: "Quart.easeIn" }
+            targets: waveMenu2,
+            x: { value: this.game.canvas.width - waveMenu2.width, duration: 500, ease: "Quart.easeIn" }
         });
     }
 
     startMatch() {
-        this.scene.launch('Hud');
-        this.displayJauges();
-        this.displayWaves();
+        this.startWaves();
         this.p1Sprite.play('c' + this.characters[0].getId() + '_p1_idle');
         this.p2Sprite.play('c' + this.characters[1].getId() + '_p2_idle');
     }
 
     update() {
-        //if (this.miniWaves[1]) console.log(this.miniWaves[1].getPosition());
-        if (this.testText1) this.testText1.setText('val : ' + this.wavesData[0][this.miniWaves[0].getPosition()]);
-        if (this.testText2) this.testText2.setText('val : ' + this.wavesData[1][this.miniWaves[1].getPosition()]);
+        if (this.testText1) this.testText1.setText('val : ' + this.miniWaves[0].getDataValue());
+        if (this.testText2) this.testText2.setText('val : ' + this.miniWaves[1].getDataValue());
     }
 
     mouseOver(gameObject: Phaser.GameObjects.GameObject): void {
